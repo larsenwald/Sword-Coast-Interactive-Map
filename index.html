@@ -1,0 +1,1278 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+    />
+    <title>Faerûn Map - Controlled Zoom</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=IM+Fell+English:ital@0;1&family=Fondamento&family=MedievalSharp&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      /* Reset and base styles */
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: "IM Fell English", serif;
+        background-color: #0c0c0c;
+        color: #d8c9a7;
+        overflow: hidden;
+        text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+        touch-action: none; /* Disable browser handling of all panning and zooming gestures */
+      }
+
+      /* Map container with fantasy background */
+      .map-container {
+        position: relative;
+        width: 100vw;
+        height: 100vh;
+        overflow: hidden;
+        background-color: #0c0c0c;
+        background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><rect width="100" height="100" fill="%23121212"/><path d="M0 0L100 100M100 0L0 100" stroke="%23181818" stroke-width="0.5"/></svg>');
+        background-repeat: repeat;
+        touch-action: none; /* Disable browser handling of all panning and zooming gestures */
+      }
+
+      /* Map canvas */
+      .map-canvas {
+        position: absolute;
+        cursor: move;
+        transform-origin: 0 0;
+        will-change: transform;
+        backface-visibility: hidden;
+        -webkit-backface-visibility: hidden;
+        touch-action: none; /* Disable browser handling of all panning and zooming gestures */
+      }
+
+      /* Map tiles container */
+      .tiles-container {
+        position: relative;
+        transform-origin: 0 0;
+        touch-action: none; /* Disable browser handling of all panning and zooming gestures */
+      }
+
+      /* Individual map tile */
+      .map-tile {
+        position: absolute;
+        display: block;
+        background-size: 100% 100%;
+      }
+
+      /* Map markers */
+      .map-marker {
+        position: absolute;
+        width: 32px;
+        height: 32px;
+        margin-left: -16px;
+        margin-top: -32px;
+        cursor: pointer;
+        transition: transform 0.3s ease, filter 0.3s ease;
+        filter: drop-shadow(0 0 3px rgba(0, 0, 0, 0.9));
+        z-index: 10;
+      }
+
+      .map-marker:hover {
+        transform: scale(1.3);
+        z-index: 20;
+        filter: drop-shadow(0 0 8px rgba(255, 215, 0, 0.6));
+      }
+
+      /* Marker colors and custom SVGs for different types */
+      .marker-city {
+        color: #e74c3c;
+      }
+      .marker-town {
+        color: #3498db;
+      }
+      .marker-landmark {
+        color: #f1c40f;
+      }
+      .marker-poi {
+        color: #2ecc71;
+      }
+
+      /* Info popup */
+      .info-popup {
+        position: fixed;
+        background-color: rgba(93, 76, 54, 0.9);
+        border: 3px solid #927c5b;
+        border-radius: 10px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.7),
+          inset 0 0 10px rgba(0, 0, 0, 0.3);
+        padding: 15px;
+        max-width: 350px;
+        z-index: 100;
+        font-size: 16px;
+        display: none;
+        transform: translate(-50%, -110%);
+        color: #f0e6d2;
+      }
+
+      .info-popup h3 {
+        margin-bottom: 12px;
+        border-bottom: 2px solid #927c5b;
+        padding-bottom: 8px;
+        font-size: 20px;
+        font-family: "MedievalSharp", cursive;
+        text-align: center;
+        letter-spacing: 1px;
+      }
+
+      .info-popup p {
+        margin-bottom: 8px;
+        line-height: 1.6;
+        font-style: italic;
+      }
+
+      /* Controls */
+      .map-controls {
+        position: fixed;
+        top: 25px;
+        right: 25px;
+        z-index: 50;
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+      }
+
+      .control-panel {
+        background-color: rgba(93, 76, 54, 0.85);
+        border: 3px solid #927c5b;
+        border-radius: 10px;
+        padding: 15px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5),
+          inset 0 0 10px rgba(0, 0, 0, 0.2);
+      }
+
+      .zoom-controls {
+        display: flex;
+        gap: 10px;
+      }
+
+      .control-btn {
+        width: 45px;
+        height: 45px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 24px;
+        background-color: #3d3224;
+        color: #f0e6d2;
+        border: 2px solid #927c5b;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.2s;
+        font-family: "MedievalSharp", cursive;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3),
+          inset 0 1px 2px rgba(255, 255, 255, 0.2);
+      }
+
+      .control-btn:hover {
+        background-color: #524533;
+        box-shadow: 0 3px 8px rgba(0, 0, 0, 0.4),
+          inset 0 1px 3px rgba(255, 255, 255, 0.3);
+        transform: translateY(-2px);
+      }
+
+      .control-btn:active {
+        background-color: #2d261c;
+        transform: translateY(1px);
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3),
+          inset 0 1px 2px rgba(0, 0, 0, 0.2);
+      }
+
+      /* Loading indicator */
+      .loading-indicator {
+        margin-top: 10px;
+        padding: 8px 12px;
+        background-color: rgba(0, 0, 0, 0.7);
+        color: #f0e6d2;
+        border-radius: 6px;
+        font-size: 14px;
+        text-align: center;
+        font-family: "Fondamento", cursive;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+        border: 1px solid #927c5b;
+      }
+
+      /* Loading animation */
+      .loading-indicator::after {
+        content: "";
+        display: inline-block;
+        width: 12px;
+        animation: loadingDots 1.5s infinite;
+      }
+
+      @keyframes loadingDots {
+        0% {
+          content: ".";
+        }
+        33% {
+          content: "..";
+        }
+        66% {
+          content: "...";
+        }
+      }
+
+      /* Compass rose */
+      .compass-rose {
+        position: fixed;
+        bottom: 30px;
+        right: 30px;
+        width: 100px;
+        height: 100px;
+        z-index: 40;
+        opacity: 0.8;
+        transition: opacity 0.3s;
+        pointer-events: none;
+      }
+
+      .compass-rose:hover {
+        opacity: 1;
+      }
+
+      /* Debug info */
+      .debug-info {
+        position: fixed;
+        bottom: 15px;
+        left: 15px;
+        background-color: rgba(0, 0, 0, 0.7);
+        color: #f0e6d2;
+        font-size: 12px;
+        padding: 8px 12px;
+        border-radius: 6px;
+        z-index: 50;
+        border: 1px solid #927c5b;
+        font-family: "Fondamento", cursive;
+      }
+
+      /* Legend panel */
+      .map-legend {
+        position: fixed;
+        bottom: 25px;
+        left: 25px;
+        z-index: 40;
+        background-color: rgba(93, 76, 54, 0.85);
+        border: 3px solid #927c5b;
+        border-radius: 10px;
+        padding: 12px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5),
+          inset 0 0 10px rgba(0, 0, 0, 0.2);
+        color: #f0e6d2;
+        max-width: 250px;
+      }
+
+      .legend-title {
+        text-align: center;
+        margin-bottom: 10px;
+        font-family: "MedievalSharp", cursive;
+        font-size: 18px;
+        border-bottom: 2px solid #927c5b;
+        padding-bottom: 5px;
+      }
+
+      .legend-item {
+        display: flex;
+        align-items: center;
+        margin-bottom: 8px;
+      }
+
+      .legend-icon {
+        width: 20px;
+        height: 20px;
+        margin-right: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .legend-text {
+        font-size: 14px;
+        font-family: "IM Fell English", serif;
+      }
+
+      /* Responsive adjustments */
+      @media (max-width: 768px) {
+        .map-controls {
+          top: auto;
+          bottom: 20px;
+          right: 20px;
+        }
+
+        .control-btn {
+          width: 40px;
+          height: 40px;
+          font-size: 20px;
+        }
+
+        .info-popup {
+          max-width: 280px;
+          font-size: 14px;
+        }
+
+        .info-popup h3 {
+          font-size: 18px;
+        }
+
+        .compass-rose {
+          width: 80px;
+          height: 80px;
+          bottom: 20px;
+          right: 20px;
+        }
+
+        .map-legend {
+          max-width: 200px;
+          bottom: 20px;
+          left: 20px;
+          padding: 10px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="map-container" id="map-container">
+      <div class="map-canvas" id="map-canvas">
+        <div class="tiles-container" id="tiles-container">
+          <!-- Tiles will be generated here -->
+        </div>
+        <!-- Markers will be generated here -->
+      </div>
+
+      <!-- Compass Rose SVG -->
+      <div class="compass-rose">
+        <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+          <circle
+            cx="50"
+            cy="50"
+            r="48"
+            fill="none"
+            stroke="#927c5b"
+            stroke-width="2"
+            opacity="0.8"
+          />
+          <circle
+            cx="50"
+            cy="50"
+            r="45"
+            fill="none"
+            stroke="#927c5b"
+            stroke-width="1"
+            opacity="0.6"
+          />
+          <circle cx="50" cy="50" r="5" fill="#927c5b" />
+
+          <!-- Cardinal directions -->
+          <path d="M50 5 L53 15 L50 13 L47 15 Z" fill="#927c5b" />
+          <path d="M95 50 L85 53 L87 50 L85 47 Z" fill="#927c5b" />
+          <path d="M50 95 L47 85 L50 87 L53 85 Z" fill="#927c5b" />
+          <path d="M5 50 L15 47 L13 50 L15 53 Z" fill="#927c5b" />
+
+          <!-- Intercardinal directions -->
+          <path
+            d="M80 20 L72 25 L75 25 L75 28 Z"
+            fill="#927c5b"
+            opacity="0.8"
+          />
+          <path
+            d="M80 80 L75 72 L75 75 L72 75 Z"
+            fill="#927c5b"
+            opacity="0.8"
+          />
+          <path
+            d="M20 80 L25 72 L25 75 L28 75 Z"
+            fill="#927c5b"
+            opacity="0.8"
+          />
+          <path
+            d="M20 20 L28 25 L25 25 L25 28 Z"
+            fill="#927c5b"
+            opacity="0.8"
+          />
+
+          <!-- Labels -->
+          <text
+            x="50"
+            y="15"
+            text-anchor="middle"
+            fill="#f0e6d2"
+            font-family="MedievalSharp"
+            font-size="8"
+          >
+            N
+          </text>
+          <text
+            x="85"
+            y="52"
+            text-anchor="middle"
+            fill="#f0e6d2"
+            font-family="MedievalSharp"
+            font-size="8"
+          >
+            E
+          </text>
+          <text
+            x="50"
+            y="88"
+            text-anchor="middle"
+            fill="#f0e6d2"
+            font-family="MedievalSharp"
+            font-size="8"
+          >
+            S
+          </text>
+          <text
+            x="15"
+            y="52"
+            text-anchor="middle"
+            fill="#f0e6d2"
+            font-family="MedievalSharp"
+            font-size="8"
+          >
+            W
+          </text>
+
+          <!-- Cross lines -->
+          <line
+            x1="50"
+            y1="5"
+            x2="50"
+            y2="95"
+            stroke="#927c5b"
+            stroke-width="1"
+            opacity="0.4"
+          />
+          <line
+            x1="5"
+            y1="50"
+            x2="95"
+            y2="50"
+            stroke="#927c5b"
+            stroke-width="1"
+            opacity="0.4"
+          />
+          <line
+            x1="15"
+            y1="15"
+            x2="85"
+            y2="85"
+            stroke="#927c5b"
+            stroke-width="1"
+            opacity="0.2"
+          />
+          <line
+            x1="15"
+            y1="85"
+            x2="85"
+            y2="15"
+            stroke="#927c5b"
+            stroke-width="1"
+            opacity="0.2"
+          />
+        </svg>
+      </div>
+
+      <!-- Legend for map markers -->
+      <div class="map-legend">
+        <div class="legend-title">Map Symbols</div>
+        <div class="legend-item">
+          <div class="legend-icon marker-city">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+              <path
+                d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"
+              />
+            </svg>
+          </div>
+          <div class="legend-text">Major City</div>
+        </div>
+        <div class="legend-item">
+          <div class="legend-icon marker-town">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+              <path
+                d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"
+              />
+            </svg>
+          </div>
+          <div class="legend-text">Town</div>
+        </div>
+        <div class="legend-item">
+          <div class="legend-icon marker-landmark">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+              <path
+                d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"
+              />
+            </svg>
+          </div>
+          <div class="legend-text">Landmark</div>
+        </div>
+        <div class="legend-item">
+          <div class="legend-icon marker-poi">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+              <path
+                d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"
+              />
+            </svg>
+          </div>
+          <div class="legend-text">Point of Interest</div>
+        </div>
+      </div>
+
+      <div class="info-popup" id="info-popup">
+        <h3 id="popup-title">Location Name</h3>
+        <p id="popup-desc">Location description goes here.</p>
+      </div>
+
+      <div class="map-controls">
+        <div class="control-panel">
+          <div class="zoom-controls">
+            <button class="control-btn" id="zoom-in">+</button>
+            <button class="control-btn" id="zoom-out">−</button>
+          </div>
+          <button class="control-btn" id="reset-view" style="margin-top: 10px">
+            ⟲
+          </button>
+        </div>
+        <div
+          class="loading-indicator"
+          id="loading-indicator"
+          style="display: none"
+        >
+          Loading tiles
+        </div>
+      </div>
+
+      <div class="debug-info" id="debug-info" style="display: none">
+        Zoom: 1.0, Tiles: 0/0 loaded
+      </div>
+    </div>
+
+    <script>
+      document.addEventListener("DOMContentLoaded", function () {
+        // Map elements
+        const mapContainer = document.getElementById("map-container");
+        const mapCanvas = document.getElementById("map-canvas");
+        const tilesContainer = document.getElementById("tiles-container");
+
+        // Control elements
+        const zoomInBtn = document.getElementById("zoom-in");
+        const zoomOutBtn = document.getElementById("zoom-out");
+        const resetViewBtn = document.getElementById("reset-view");
+        const loadingIndicator = document.getElementById("loading-indicator");
+        const debugInfo = document.getElementById("debug-info");
+
+        // Popup elements
+        const infoPopup = document.getElementById("info-popup");
+        const popupTitle = document.getElementById("popup-title");
+        const popupDesc = document.getElementById("popup-desc");
+
+        // Map state variables
+        let scale = 1;
+        let translateX = 0;
+        let translateY = 0;
+        let startPanX = 0;
+        let startPanY = 0;
+        let isPanning = false;
+        let lastMouseX = 0;
+        let lastMouseY = 0;
+
+        // Tile management variables
+        let tileSize = 256; // Size of each tile in pixels
+        let tilesX = 0; // Number of tiles in X direction
+        let tilesY = 0; // Number of tiles in Y direction
+        let loadedTiles = 0;
+        let totalVisibleTiles = 0;
+        let visibleTiles = new Set(); // Keep track of which tiles are in view
+        let tilesLoading = new Set(); // Keep track of tiles currently loading
+
+        // Original image dimensions
+        // Change these to match your actual image dimensions
+        const originalWidth = 10200;
+        const originalHeight = 6600;
+
+        // Min and max zoom levels
+        const MIN_SCALE = 0.1;
+        const MAX_SCALE = 3;
+
+        // Initial zoom settings - ADJUST THESE TO TARGET NEVERWINTER
+        // ==========================================
+        // To target a specific location, you need to:
+        // 1. Find the pixel coordinates of the location in your original image
+        // 2. Set initialX to that X coordinate / originalWidth
+        // 3. Set initialY to that Y coordinate / originalHeight
+        // Example: If your location is at pixel (4500, 3000) in your 10200x6600 image:
+        // Initial zoom would be: initialX = 4500/10200 = ~0.44, initialY = 3000/6600 = ~0.45
+
+        //Or you could ignore all of this and just keep adjusting these variables until you get a satisfactory window lol
+        // ==========================================
+        const initialScale = 0.6; // Initial zoom level - increase for closer zoom
+        const initialX = 0.42; // X position to center on (0-1, percentage of image width)
+        const initialY = 0.24; // Y position to center on (0-1, percentage of image height)
+
+        // Fantasy-styled custom marker SVGs
+        const markerSVGs = {
+          city: `<svg viewBox="0 0 24 24" width="32" height="32" fill="currentColor">
+                        <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
+                        <circle cx="12" cy="7" r="3" fill="white" opacity="0.6"/>
+                      </svg>`,
+          town: `<svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor">
+                        <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
+                      </svg>`,
+          landmark: `<svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor">
+                        <path d="M12 2L4 9h2v11h12V9h2L12 2zm0 4.5l3 3V8h-6v1.5l3-3z"/>
+                      </svg>`,
+          poi: `<svg viewBox="0 0 24 24" width="26" height="26" fill="currentColor">
+                        <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
+                      </svg>`,
+        };
+
+        // Sample locations data - this would be the OC's known locations
+        // Coordinates are in the original image's coordinate system
+        const locations = [
+          {
+            id: 1,
+            name: "Neverwinter",
+            type: "city",
+            description: "The Jewel of the North, famous for its hot springs.",
+            x: originalWidth * 0.3985, // Approximate - adjust based on your map
+            y: originalHeight * 0.207,
+          },
+        ];
+
+        // Performance optimization - check for hardware acceleration
+        const hasHardwareAcceleration = (function () {
+          const el = document.createElement("div");
+          const transforms = {
+            webkitTransform: "-webkit-transform",
+            OTransform: "-o-transform",
+            msTransform: "-ms-transform",
+            MozTransform: "-moz-transform",
+            transform: "transform",
+          };
+
+          for (const t in transforms) {
+            if (el.style[t] !== undefined) {
+              el.style[t] = "translate3d(1px,1px,1px)";
+              const has3d = window
+                .getComputedStyle(el)
+                .getPropertyValue(transforms[t]);
+              return (
+                has3d !== undefined && has3d.length > 0 && has3d !== "none"
+              );
+            }
+          }
+          return false;
+        })();
+
+        // Disable browser pinch zoom
+        disableNativePinchZoom();
+
+        // Initialize map
+        initMap();
+
+        // Add subtle ambient animation
+        addAmbientEffects();
+
+        // Disable browser's native pinch-to-zoom functionality
+        function disableNativePinchZoom() {
+          // 1. Prevent touchmove with more than one touch (pinch gesture)
+          document.addEventListener(
+            "touchmove",
+            function (e) {
+              if (e.touches.length > 1) {
+                e.preventDefault();
+              }
+            },
+            { passive: false }
+          );
+
+          // 2. Prevent wheel events when ctrl key is pressed (browser zoom)
+          document.addEventListener(
+            "wheel",
+            function (e) {
+              if (e.ctrlKey) {
+                e.preventDefault();
+              }
+            },
+            { passive: false }
+          );
+
+          // 3. Prevent the gesturestart event (Safari)
+          document.addEventListener(
+            "gesturestart",
+            function (e) {
+              e.preventDefault();
+            },
+            { passive: false }
+          );
+
+          // 4. Prevent the gesturechange event (Safari)
+          document.addEventListener(
+            "gesturechange",
+            function (e) {
+              e.preventDefault();
+            },
+            { passive: false }
+          );
+
+          // 5. Prevent the gestureend event (Safari)
+          document.addEventListener(
+            "gestureend",
+            function (e) {
+              e.preventDefault();
+            },
+            { passive: false }
+          );
+        }
+
+        // Set initial position and create tiles
+        function initMap() {
+          // Calculate tiles needed based on your actual tiles
+          tilesX = 40; // You have tiles from 0 to 39 in X direction
+          tilesY = 26; // You have tiles from 0 to 25 in Y direction
+
+          // Set the tiles container size to match original image
+          tilesContainer.style.width = `${originalWidth}px`;
+          tilesContainer.style.height = `${originalHeight}px`;
+
+          // Set initial scale
+          scale = initialScale;
+
+          // Set initial position to center on the targeted coordinates
+          translateX =
+            mapContainer.offsetWidth / 2 - originalWidth * initialX * scale;
+          translateY =
+            mapContainer.offsetHeight / 2 - originalHeight * initialY * scale;
+
+          // Apply initial transform
+          updateMapTransform();
+
+          // Create markers for locations
+          createMarkers();
+
+          // Initial load of visible tiles
+          requestAnimationFrame(updateVisibleTiles);
+        }
+
+        // Add subtle ambient animations for immersion
+        function addAmbientEffects() {
+          // Subtle pulsing effect on the compass rose
+          const compassRose = document.querySelector(".compass-rose");
+          setInterval(() => {
+            compassRose.style.opacity =
+              parseFloat(compassRose.style.opacity || 0.8) === 0.8 ? 0.9 : 0.8;
+          }, 3000);
+        }
+
+        // Create tile elements as needed based on viewport
+        function updateVisibleTiles() {
+          // Show loading indicator
+          loadingIndicator.style.display = "block";
+
+          // Calculate which tiles should be visible
+          const viewportRect = mapContainer.getBoundingClientRect();
+          const mapRect = {
+            left: translateX,
+            top: translateY,
+            width: originalWidth * scale,
+            height: originalHeight * scale,
+          };
+
+          // Determine tile boundaries that are in view
+          const startTileX = Math.max(
+            0,
+            Math.floor(-translateX / scale / tileSize)
+          );
+          const endTileX = Math.min(
+            tilesX - 1,
+            Math.ceil((-translateX + viewportRect.width) / scale / tileSize)
+          );
+          const startTileY = Math.max(
+            0,
+            Math.floor(-translateY / scale / tileSize)
+          );
+          const endTileY = Math.min(
+            tilesY - 1,
+            Math.ceil((-translateY + viewportRect.height) / scale / tileSize)
+          );
+
+          // Keep track of new visible tiles
+          const newVisibleTiles = new Set();
+
+          // Create and position visible tiles
+          for (let y = startTileY; y <= endTileY; y++) {
+            for (let x = startTileX; x <= endTileX; x++) {
+              const tileKey = `tile-${x}-${y}`;
+              newVisibleTiles.add(tileKey);
+
+              // Only create tile if it doesn't exist
+              if (!visibleTiles.has(tileKey) && !tilesLoading.has(tileKey)) {
+                createTile(x, y);
+              }
+            }
+          }
+
+          // Remove tiles that are no longer visible
+          visibleTiles.forEach((tileKey) => {
+            if (!newVisibleTiles.has(tileKey)) {
+              const tileElement = document.getElementById(tileKey);
+              if (tileElement) {
+                tileElement.remove();
+              }
+              visibleTiles.delete(tileKey);
+            }
+          });
+
+          // Update visible tiles set
+          visibleTiles = newVisibleTiles;
+          totalVisibleTiles = visibleTiles.size;
+
+          // Update debug info
+          updateDebugInfo();
+
+          // Hide loading indicator if no tiles are loading
+          if (tilesLoading.size === 0) {
+            loadingIndicator.style.display = "none";
+          }
+        }
+
+        // Create a single tile
+        function createTile(x, y) {
+          const tileKey = `tile-${x}-${y}`;
+
+          // Add to loading set
+          tilesLoading.add(tileKey);
+
+          // Create tile element
+          const tile = document.createElement("div");
+          tile.id = tileKey;
+          tile.className = "map-tile";
+          tile.style.width = `${tileSize}px`;
+          tile.style.height = `${tileSize}px`;
+          tile.style.left = `${x * tileSize}px`;
+          tile.style.top = `${y * tileSize}px`;
+
+          // Add error handling for tiles
+          tile.onerror = function () {
+            console.error(`Failed to load tile: ${tileKey}`);
+            // Set a fallback background color
+            tile.style.backgroundColor = "#1c1c1c";
+            tilesLoading.delete(tileKey);
+
+            // Still count it as loaded for the UI
+            loadedTiles++;
+            updateDebugInfo();
+          };
+
+          // Load your actual tile images
+          tile.style.backgroundImage = `url('faerun_tiles/tile_${y}_${x}.png')`;
+
+          // Add to DOM
+          tilesContainer.appendChild(tile);
+
+          // Add to visible tiles
+          visibleTiles.add(tileKey);
+
+          // Add load event for the tile
+          const img = new Image();
+          img.onload = function () {
+            tilesLoading.delete(tileKey);
+            loadedTiles++;
+            updateDebugInfo();
+
+            // Hide loading indicator if all tiles loaded
+            if (tilesLoading.size === 0) {
+              loadingIndicator.style.display = "none";
+            }
+          };
+
+          // Set the image source to start loading
+          img.src = `faerun_tiles/tile_${y}_${x}.png`;
+        }
+
+        // Create SVG markers for all locations
+        function createMarkers() {
+          locations.forEach((location) => {
+            // Create marker element
+            const marker = document.createElement("div");
+            marker.className = `map-marker marker-${location.type}`;
+            marker.dataset.id = location.id;
+
+            // Add the appropriate SVG icon based on location type
+            marker.innerHTML = markerSVGs[location.type] || markerSVGs.poi;
+
+            // Position marker on the map
+            marker.style.left = `${location.x}px`;
+            marker.style.top = `${location.y}px`;
+
+            // Add event listeners
+            marker.addEventListener("click", function (e) {
+              showInfoPopup(location, e);
+              e.stopPropagation();
+            });
+
+            // Add marker to map
+            mapCanvas.appendChild(marker);
+          });
+        }
+
+        // Show info popup for a location
+        function showInfoPopup(location, event) {
+          // Update popup content
+          popupTitle.textContent = location.name;
+          popupDesc.textContent = location.description;
+
+          // Position popup relative to marker using viewport-relative coordinates
+          const marker = event.currentTarget;
+          const markerRect = marker.getBoundingClientRect();
+
+          // Position popup above marker with fixed position
+          infoPopup.style.left = `${markerRect.left + markerRect.width / 2}px`;
+          infoPopup.style.top = `${markerRect.top}px`;
+
+          // Show popup with animation
+          infoPopup.style.opacity = 0;
+          infoPopup.style.display = "block";
+
+          // Fade in animation
+          setTimeout(() => {
+            infoPopup.style.transition = "opacity 0.3s ease";
+            infoPopup.style.opacity = 1;
+          }, 10);
+
+          // Close popup when clicking elsewhere
+          const closePopup = function (e) {
+            if (!infoPopup.contains(e.target) && !marker.contains(e.target)) {
+              // Fade out animation
+              infoPopup.style.opacity = 0;
+              setTimeout(() => {
+                infoPopup.style.display = "none";
+                infoPopup.style.transition = "";
+              }, 300);
+              document.removeEventListener("click", closePopup);
+            }
+          };
+
+          // Add click event listener with delay to prevent immediate closing
+          setTimeout(() => {
+            document.addEventListener("click", closePopup);
+          }, 10);
+        }
+
+        // Pan functionality
+        mapCanvas.addEventListener("mousedown", startPan);
+        document.addEventListener("mousemove", throttle(pan, 16)); // ~60fps
+        document.addEventListener("mouseup", endPan);
+        document.addEventListener("click", handleClick);
+
+        // Touch support
+        mapCanvas.addEventListener("touchstart", startPanTouch);
+        document.addEventListener("touchmove", throttle(panTouch, 16)); // ~60fps
+        document.addEventListener("touchend", endPan);
+
+        // Edge case handlers
+        window.addEventListener("mouseleave", endPan);
+        window.addEventListener("blur", endPan);
+
+        // Zoom controls
+        zoomInBtn.addEventListener("click", zoomIn);
+        zoomOutBtn.addEventListener("click", zoomOut);
+        resetViewBtn.addEventListener("click", resetView);
+
+        // Handle mouse wheel zoom ONLY - disable touchpad pinch zoom
+        mapContainer.addEventListener(
+          "wheel",
+          function (e) {
+            // Only allow non-ctrl wheel events (prevent browser zoom)
+            if (!e.ctrlKey) {
+              handleZoom(e);
+            }
+            // Always prevent default to disable any native zooming
+            e.preventDefault();
+          },
+          { passive: false }
+        );
+
+        // Mouse wheel zoom handler
+        function handleZoom(e) {
+          // Get position within the map container
+          const containerRect = mapContainer.getBoundingClientRect();
+          const mouseX = e.clientX - containerRect.left;
+          const mouseY = e.clientY - containerRect.top;
+
+          // Calculate position on the map
+          const mapX = (mouseX - translateX) / scale;
+          const mapY = (mouseY - translateY) / scale;
+
+          // Determine zoom direction and use a smaller factor for smoother zooming
+          const zoomFactor = e.deltaY < 0 ? 1.05 : 0.95;
+
+          // Apply zoom with limits
+          const newScale = Math.max(
+            MIN_SCALE,
+            Math.min(MAX_SCALE, scale * zoomFactor)
+          );
+
+          // Only update if scale actually changed
+          if (newScale !== scale) {
+            // Apply zoom around mouse position
+            scale = newScale;
+            translateX = mouseX - mapX * scale;
+            translateY = mouseY - mapY * scale;
+
+            // Update transform
+            requestAnimationFrame(() => {
+              updateMapTransform();
+              // Update visible tiles after zoom
+              updateVisibleTiles();
+            });
+          }
+        }
+
+        // Start panning
+        function startPan(e) {
+          // Only start panning with left mouse button
+          if (e.button !== 0) return;
+
+          isPanning = true;
+          startPanX = e.clientX - translateX;
+          startPanY = e.clientY - translateY;
+
+          // Store initial mouse position
+          lastMouseX = e.clientX;
+          lastMouseY = e.clientY;
+
+          mapCanvas.style.cursor = "grabbing";
+          e.preventDefault(); // Prevent text selection
+        }
+
+        // Start panning (touch)
+        function startPanTouch(e) {
+          // Only handle single-touch events for panning
+          // Prevent handling multi-touch events (used for pinch-zoom)
+          if (e.touches.length !== 1) {
+            e.preventDefault();
+            return;
+          }
+
+          isPanning = true;
+          startPanX = e.touches[0].clientX - translateX;
+          startPanY = e.touches[0].clientY - translateY;
+
+          // Store initial touch position
+          lastMouseX = e.touches[0].clientX;
+          lastMouseY = e.touches[0].clientY;
+
+          e.preventDefault();
+        }
+
+        // Pan while dragging
+        function pan(e) {
+          if (!isPanning) return;
+
+          // Update map position in real-time
+          translateX = e.clientX - startPanX;
+          translateY = e.clientY - startPanY;
+
+          // Store current mouse position
+          lastMouseX = e.clientX;
+          lastMouseY = e.clientY;
+
+          // Update transform
+          updateMapTransform();
+
+          // Check if we need to load new tiles after significant movement
+          if (
+            Math.abs(e.clientX - lastMouseX) > 50 ||
+            Math.abs(e.clientY - lastMouseY) > 50
+          ) {
+            updateVisibleTiles();
+          }
+
+          e.preventDefault();
+        }
+
+        // Pan while dragging (touch)
+        function panTouch(e) {
+          // Don't handle multi-touch events
+          if (!isPanning || e.touches.length !== 1) {
+            return;
+          }
+
+          // Update map position in real-time
+          translateX = e.touches[0].clientX - startPanX;
+          translateY = e.touches[0].clientY - startPanY;
+
+          // Store current touch position
+          lastMouseX = e.touches[0].clientX;
+          lastMouseY = e.touches[0].clientY;
+
+          // Update transform
+          updateMapTransform();
+
+          // Check if we need to load new tiles after significant movement
+          updateVisibleTiles();
+
+          e.preventDefault();
+        }
+
+        // End panning
+        function endPan(e) {
+          if (!isPanning) return;
+
+          isPanning = false;
+          mapCanvas.style.cursor = "move";
+
+          // Update tiles after pan ends
+          updateVisibleTiles();
+        }
+
+        // Handle clicks
+        function handleClick(e) {
+          if (isPanning) {
+            isPanning = false;
+            mapCanvas.style.cursor = "move";
+          }
+        }
+
+        // Zoom in
+        function zoomIn() {
+          if (scale < MAX_SCALE) {
+            // Show loading indicator
+            loadingIndicator.style.display = "block";
+
+            // Get center of viewport
+            const centerX = mapContainer.offsetWidth / 2;
+            const centerY = mapContainer.offsetHeight / 2;
+
+            // Calculate position on the map
+            const mapX = (centerX - translateX) / scale;
+            const mapY = (centerY - translateY) / scale;
+
+            // Apply zoom
+            scale *= 1.2;
+            if (scale > MAX_SCALE) scale = MAX_SCALE;
+
+            // Adjust position to zoom around center
+            translateX = centerX - mapX * scale;
+            translateY = centerY - mapY * scale;
+
+            // Update transform and tiles
+            requestAnimationFrame(() => {
+              updateMapTransform();
+              updateVisibleTiles();
+            });
+          }
+        }
+
+        // Zoom out
+        function zoomOut() {
+          if (scale > MIN_SCALE) {
+            // Show loading indicator
+            loadingIndicator.style.display = "block";
+
+            // Get center of viewport
+            const centerX = mapContainer.offsetWidth / 2;
+            const centerY = mapContainer.offsetHeight / 2;
+
+            // Calculate position on the map
+            const mapX = (centerX - translateX) / scale;
+            const mapY = (centerY - translateY) / scale;
+
+            // Apply zoom
+            scale *= 0.8;
+            if (scale < MIN_SCALE) scale = MIN_SCALE;
+
+            // Adjust position to zoom around center
+            translateX = centerX - mapX * scale;
+            translateY = centerY - mapY * scale;
+
+            // Update transform and tiles
+            requestAnimationFrame(() => {
+              updateMapTransform();
+              updateVisibleTiles();
+            });
+          }
+        }
+
+        // Reset view
+        function resetView() {
+          // Reset to initial position
+          scale = initialScale;
+          translateX =
+            mapContainer.offsetWidth / 2 - originalWidth * initialX * scale;
+          translateY =
+            mapContainer.offsetHeight / 2 - originalHeight * initialY * scale;
+
+          // Update
+          requestAnimationFrame(() => {
+            updateMapTransform();
+            updateVisibleTiles();
+          });
+        }
+
+        // Update map transform with hardware acceleration if available
+        function updateMapTransform() {
+          if (hasHardwareAcceleration) {
+            mapCanvas.style.transform = `translate3d(${translateX}px, ${translateY}px, 0) scale(${scale})`;
+          } else {
+            mapCanvas.style.transform = `translate(${translateX}px, ${translateY}px) scale(${scale})`;
+          }
+
+          // Update debug info
+          updateDebugInfo();
+        }
+
+        // Update debug information
+        function updateDebugInfo() {
+          debugInfo.textContent = `Zoom: ${scale.toFixed(
+            2
+          )}, Tiles: ${loadedTiles}/${totalVisibleTiles} loaded, View: ${Math.round(
+            -translateX / scale
+          )},${Math.round(-translateY / scale)}`;
+        }
+
+        // Debounce function to limit the rate at which a function can fire
+        function debounce(func, wait) {
+          let timeout;
+          return function (...args) {
+            const context = this;
+            clearTimeout(timeout);
+            timeout = setTimeout(() => func.apply(context, args), wait);
+          };
+        }
+
+        // Throttle function for performance-critical code
+        function throttle(func, limit) {
+          let inThrottle;
+          return function (...args) {
+            const context = this;
+            if (!inThrottle) {
+              func.apply(context, args);
+              inThrottle = true;
+              setTimeout(() => (inThrottle = false), limit);
+            }
+          };
+        }
+
+        // Handle window resizing
+        window.addEventListener(
+          "resize",
+          debounce(() => {
+            // Update tiles on resize
+            updateVisibleTiles();
+          }, 250)
+        );
+      });
+    </script>
+  </body>
+</html>
