@@ -6,19 +6,23 @@ A high-performance, responsive interactive map of Faerûn (Sword Coast) built wi
 
 ## Features
 
-- **Tile-based rendering** for handling extremely large images (10,000+ pixels) without performance issues
-- **Smooth panning and zooming** with hardware acceleration
+- **Tile-based rendering** for handling extremely large images (10,000+ pixels) *without performance issues*
+- **Smooth panning and zooming** with, drumroll please, hardware acceleration!
 - **Customizable markers** for cities, towns, landmarks, and points of interest
-- **Responsive design** that works on all screen sizes
-- **Medieval fantasy UI** theme that's immersive for D&D campaigns
+- **Responsive design** naturally :)
 - **Touchscreen support** with controlled zoom behavior
 
-## Setup
+## Reverse engineering for your own map
 
-1. Split your large map image into 256×256 pixel tiles using an image slicing tool
-2. Name them in the format `tile_Y_X.png` where Y is row (0-25) and X is column (0-39)
-3. Place tiles in a folder named `faerun_tiles` next to the HTML file
-4. Open the HTML file in a browser
+The software can actually work with any map, if you wish to reverse engineer it.
+
+### Tile System Setup
+
+1. Slice your map into 256x256px tiles named `tile_y_x.png`. There are many python scripts out there that can do this for you using Pillow, or you could write one yourself.
+2. Update these variables:
+   - `tilesX` and `tilesY` to match your grid dimensions
+   - `originalWidth` and `originalHeight` to your map's full resolution
+   - `tileSize` if using different tile dimensions
 
 ## Customization
 
