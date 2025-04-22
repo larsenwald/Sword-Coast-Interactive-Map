@@ -270,13 +270,38 @@
       /* Image in lore tab */
       .location-image {
         width: 100%;
-        height: 180px;
+        height: 0;
+        padding-bottom: 56.25%; /* 16:9 aspect ratio */
         margin-bottom: 15px;
         background-size: cover;
         background-position: center;
+        background-repeat: no-repeat;
         border-radius: 6px;
         border: 2px solid #935e27;
         box-shadow: 0 3px 10px rgba(0, 0, 0, 0.4);
+        position: relative;
+        overflow: hidden;
+      }
+
+      /* For images with specific aspect ratios that should be preserved */
+      .location-image.preserve-ratio {
+        background-size: contain;
+        background-color: rgba(0, 0, 0, 0.3);
+      }
+
+      /* Responsive adjustments for location images on different screen sizes */
+      @media (max-width: 768px) {
+        .location-image {
+          padding-bottom: 75%; /* 4:3 aspect ratio on smaller screens */
+        }
+      }
+
+      @media (max-width: 480px) {
+        .location-image {
+          padding-bottom: 75%; /* Keep 4:3 on mobile */
+          margin-bottom: 10px;
+          border-width: 1px;
+        }
       }
 
       /* Notable NPCs styling */
@@ -923,7 +948,7 @@
         const MIN_SCALE = 0.1;
         const MAX_SCALE = 3;
 
-        // Initial zoom settings - ADJUST THESE TO TARGET NEVERWINTER
+        // Initial zoom settings
         const initialScale = 0.6; // Initial zoom level - increase for closer zoom
         const initialX = 0.42; // X position to center on (0-1, percentage of image width)
         const initialY = 0.24; // Y position to center on (0-1, percentage of image height)
