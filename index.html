@@ -13,7 +13,13 @@
       href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600;700&family=Habibi&display=swap"
       rel="stylesheet"
     />
+    <script src="https://kit.fontawesome.com/6bbc25d724.js" crossorigin="anonymous"></script>
     <style>
+      :root{
+        --map-width: 50vw;   /* set whatever you like: 100%, 70vw, etc. */
+        --map-height: 60vh;  /* 60vh, clamp(400px,50vh,800px)… */
+      }
+
       /* Reset and base styles */
       * {
         margin: 0;
@@ -21,11 +27,19 @@
         box-sizing: border-box;
       }
 
+      .map-wrapper{
+      width:  var(--map-width);
+      height: var(--map-height);
+      position: relative;
+      overflow: hidden;         /* keeps tiles inside the frame */
+      border: 3px solid #927c5b;/* optional – just to show the edge */
+    }
+
       body {
         font-family: "Habibi", serif;
         background-color: #0c0c0c;
         color: #d8c9a7;
-        overflow: hidden;
+        /*overflow: hidden;*/
         text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
         touch-action: none; /* Disable browser handling of all panning and zooming gestures */
       }
@@ -33,10 +47,10 @@
       /* Map container with fantasy background */
       .map-container {
         position: relative;
-        width: 100vw;
-        height: 100vh;
+        width: 100%;   /* stretch to wrapper */
+        height: 100%;  /* stretch to wrapper */
         overflow: hidden;
-        background-color: #0c0c0c;
+        background-color:#0c0c0c;
         background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><rect width="100" height="100" fill="%23121212"/><path d="M0 0L100 100M100 0L0 100" stroke="%23181818" stroke-width="0.5"/></svg>');
         background-repeat: repeat;
         touch-action: none; /* Disable browser handling of all panning and zooming gestures */
@@ -441,33 +455,18 @@
       }
 
       /* Controls */
-      .map-controls {
-        position: fixed;
-        top: 25px;
-        right: 25px;
-        z-index: 50;
-        display: flex;
-        flex-direction: column;
-        gap: 15px;
-      }
 
       .control-panel {
-        background-color: rgba(93, 76, 54, 0.85);
-        border: 3px solid #927c5b;
-        border-radius: 10px;
-        padding: 15px;
-        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5),
-          inset 0 0 10px rgba(0, 0, 0, 0.2);
-      }
-
-      .zoom-controls {
+        position: absolute;
+        bottom: 0;
+        right: 0;
         display: flex;
-        gap: 10px;
+        gap: 2%;
       }
 
       .control-btn {
         width: 45px;
-        height: 45px;
+        aspect-ratio: 1 / 1;
         display: flex;
         align-items: center;
         justify-content: center;
@@ -499,7 +498,9 @@
 
       /* Loading indicator */
       .loading-indicator {
-        margin-top: 10px;
+        position: absolute;
+        top: 0;
+        right: 0;
         padding: 8px 12px;
         background-color: rgba(0, 0, 0, 0.7);
         color: #f0e6d2;
@@ -531,23 +532,6 @@
         }
       }
 
-      /* Compass rose */
-      .compass-rose {
-        position: fixed;
-        bottom: 30px;
-        right: 30px;
-        width: 100px;
-        height: 100px;
-        z-index: 40;
-        opacity: 0.8;
-        transition: opacity 0.3s;
-        pointer-events: none;
-      }
-
-      .compass-rose:hover {
-        opacity: 1;
-      }
-
       /* Debug info */
       .debug-info {
         position: fixed;
@@ -565,10 +549,9 @@
 
       /* Legend panel */
       .map-legend {
-        position: fixed;
-        bottom: 25px;
-        left: 25px;
-        z-index: 40;
+        position: absolute;
+        bottom: 1%;
+        left: 1%;
         background-color: rgba(93, 76, 54, 0.85);
         border: 3px solid #927c5b;
         border-radius: 10px;
@@ -577,6 +560,12 @@
           inset 0 0 10px rgba(0, 0, 0, 0.2);
         color: #f0e6d2;
         max-width: 250px;
+        user-select: none;
+        cursor: pointer;
+        transition: transform .1s;
+      }
+      .map-legend:hover{
+        transform: scale(1.05)
       }
 
       .legend-title {
@@ -608,269 +597,107 @@
         font-family: "Habibi", serif;
       }
 
-      /* Responsive adjustments */
-      @media (max-width: 768px) {
-        .map-controls {
-          top: auto;
-          bottom: 20px;
-          right: 20px;
-        }
-
-        .control-btn {
-          width: 40px;
-          height: 40px;
-          font-size: 20px;
-        }
-
-        .location-modal {
-          width: 95%;
-          max-height: 80vh;
-        }
-
-        .modal-title {
-          font-size: 22px;
-        }
-
-        .modal-tab {
-          font-size: 14px;
-          padding: 10px 5px;
-        }
-
-        .npc-card {
-          flex: 1 0 100%;
-        }
-
-        .compass-rose {
-          width: 80px;
-          height: 80px;
-          bottom: 20px;
-          right: 20px;
-        }
-
-        .map-legend {
-          max-width: 200px;
-          bottom: 20px;
-          left: 20px;
-          padding: 10px;
-        }
+      #expand-legend{
+        position: absolute;
+        bottom: 0;
+        left: 0;
       }
 
-      @media (max-width: 480px) {
-        .modal-tabs {
-          flex-wrap: wrap;
-        }
-
-        .modal-tab {
-          flex: 1 0 50%;
-        }
+      .hidden{
+        display: none;
       }
     </style>
   </head>
   <body>
-    <div class="map-container" id="map-container">
-      <div class="map-canvas" id="map-canvas">
-        <div class="tiles-container" id="tiles-container">
-          <!-- Tiles will be generated here -->
-        </div>
-        <!-- Markers will be generated here -->
-      </div>
-
-          <!-- Cardinal directions -->
-          <path d="M50 5 L53 15 L50 13 L47 15 Z" fill="#927c5b" />
-          <path d="M95 50 L85 53 L87 50 L85 47 Z" fill="#927c5b" />
-          <path d="M50 95 L47 85 L50 87 L53 85 Z" fill="#927c5b" />
-          <path d="M5 50 L15 47 L13 50 L15 53 Z" fill="#927c5b" />
-
-          <!-- Intercardinal directions -->
-          <path
-            d="M80 20 L72 25 L75 25 L75 28 Z"
-            fill="#927c5b"
-            opacity="0.8"
-          />
-          <path
-            d="M80 80 L75 72 L75 75 L72 75 Z"
-            fill="#927c5b"
-            opacity="0.8"
-          />
-          <path
-            d="M20 80 L25 72 L25 75 L28 75 Z"
-            fill="#927c5b"
-            opacity="0.8"
-          />
-          <path
-            d="M20 20 L28 25 L25 25 L25 28 Z"
-            fill="#927c5b"
-            opacity="0.8"
-          />
-
-          <!-- Labels -->
-          <text
-            x="50"
-            y="15"
-            text-anchor="middle"
-            fill="#f0e6d2"
-            font-family="Cinzel"
-            font-size="8"
-          >
-            N
-          </text>
-          <text
-            x="85"
-            y="52"
-            text-anchor="middle"
-            fill="#f0e6d2"
-            font-family="Cinzel"
-            font-size="8"
-          >
-            E
-          </text>
-          <text
-            x="50"
-            y="88"
-            text-anchor="middle"
-            fill="#f0e6d2"
-            font-family="Cinzel"
-            font-size="8"
-          >
-            S
-          </text>
-          <text
-            x="15"
-            y="52"
-            text-anchor="middle"
-            fill="#f0e6d2"
-            font-family="Cinzel"
-            font-size="8"
-          >
-            W
-          </text>
-
-          <!-- Cross lines -->
-          <line
-            x1="50"
-            y1="5"
-            x2="50"
-            y2="95"
-            stroke="#927c5b"
-            stroke-width="1"
-            opacity="0.4"
-          />
-          <line
-            x1="5"
-            y1="50"
-            x2="95"
-            y2="50"
-            stroke="#927c5b"
-            stroke-width="1"
-            opacity="0.4"
-          />
-          <line
-            x1="15"
-            y1="15"
-            x2="85"
-            y2="85"
-            stroke="#927c5b"
-            stroke-width="1"
-            opacity="0.2"
-          />
-          <line
-            x1="15"
-            y1="85"
-            x2="85"
-            y2="15"
-            stroke="#927c5b"
-            stroke-width="1"
-            opacity="0.2"
-          />
-        </svg>
-      </div>
-
-      <!-- Beautiful Location Modal -->
-      <div class="modal-backdrop" id="modal-backdrop"></div>
-      <div class="location-modal" id="location-modal">
-        <div class="modal-corner top-left"></div>
-        <div class="modal-corner top-right"></div>
-        <div class="modal-corner bottom-left"></div>
-        <div class="modal-corner bottom-right"></div>
-
-        <div class="modal-header">
-          <h2 class="modal-title" id="modal-title">Location Name</h2>
-          <div class="modal-subtitle" id="modal-subtitle">
-            Subtitle or location type
+    <div class="map-wrapper">
+      <div class="map-container" id="map-container">
+        <div class="map-canvas" id="map-canvas">
+          <div class="tiles-container" id="tiles-container">
+            <!-- Tiles will be generated here -->
           </div>
-          <div class="modal-close" id="modal-close">×</div>
+          <!-- Markers will be generated here -->
         </div>
-
-        <div class="modal-tabs" id="modal-tabs">
-          <div class="modal-tab active" data-tab="overview">Overview</div>
-          <div class="modal-tab" data-tab="lore">Lore & History</div>
-          <div class="modal-tab" data-tab="npcs">Notable NPCs</div>
         </div>
-
-        <div class="modal-content" id="modal-content">
-          <!-- Tab contents will be populated dynamically -->
-          <div class="tab-content active" id="tab-overview">
-            <!-- Overview content will be inserted here -->
+        <!-- Beautiful Location Modal -->
+        <div class="modal-backdrop" id="modal-backdrop"></div>
+        <div class="location-modal" id="location-modal">
+          <div class="modal-corner top-left"></div>
+          <div class="modal-corner top-right"></div>
+          <div class="modal-corner bottom-left"></div>
+          <div class="modal-corner bottom-right"></div>
+          <div class="modal-header">
+            <h2 class="modal-title" id="modal-title">Location Name</h2>
+            <div class="modal-subtitle" id="modal-subtitle">
+              Subtitle or location type
+            </div>
+            <div class="modal-close" id="modal-close">×</div>
           </div>
-          <div class="tab-content" id="tab-lore">
-            <!-- Lore content will be inserted here -->
+          <div class="modal-tabs" id="modal-tabs">
+            <div class="modal-tab active" data-tab="overview">Overview</div>
+            <div class="modal-tab" data-tab="lore">Lore & History</div>
+            <div class="modal-tab" data-tab="npcs">Notable NPCs</div>
           </div>
-          <div class="tab-content" id="tab-npcs">
-            <!-- NPCs content will be inserted here -->
+          <div class="modal-content" id="modal-content">
+            <!-- Tab contents will be populated dynamically -->
+            <div class="tab-content active" id="tab-overview">
+              <!-- Overview content will be inserted here -->
+            </div>
+            <div class="tab-content" id="tab-lore">
+              <!-- Lore content will be inserted here -->
+            </div>
+            <div class="tab-content" id="tab-npcs">
+              <!-- NPCs content will be inserted here -->
+            </div>
           </div>
         </div>
-      </div>
-
-      <!-- Legend for map markers -->
-      <div class="map-legend">
-        <div class="legend-title">Map Symbols</div>
-        <div class="legend-item">
-          <div class="legend-icon marker-city">
-            <!-- City icon will be inserted by JavaScript -->
+        <!-- Legend for map markers -->
+        <div class="map-legend">
+          <div class="legend-title">Map Symbols</div>
+          <div class="legend-item">
+            <div class="legend-icon marker-city">
+              <!-- City icon will be inserted by JavaScript -->
+            </div>
+            <div class="legend-text">Major City</div>
           </div>
-          <div class="legend-text">Major City</div>
+          <div class="legend-item">
+            <div class="legend-icon marker-town">
+              <!-- Town icon will be inserted by JavaScript -->
+            </div>
+            <div class="legend-text">Town</div>
+          </div>
+          <div class="legend-item">
+            <div class="legend-icon marker-landmark">
+              <!-- Landmark icon will be inserted by JavaScript -->
+            </div>
+            <div class="legend-text">Landmark</div>
+          </div>
+          <div class="legend-item">
+            <div class="legend-icon marker-poi">
+              <!-- POI icon will be inserted by JavaScript -->
+            </div>
+            <div class="legend-text">Point of Interest</div>
+          </div>
         </div>
-        <div class="legend-item">
-          <div class="legend-icon marker-town">
-            <!-- Town icon will be inserted by JavaScript -->
+        <div id="expand-legend" class="hidden control-btn"><i class="fa-solid fa-caret-up"></i></div>
+        <div class="map-controls">
+          <div class="control-panel">
+              <button class="control-btn" id="zoom-in">+</button>
+              <button class="control-btn" id="zoom-out">−</button>
+            <button class="control-btn" id="reset-view">
+              ⟲
+            </button>
           </div>
-          <div class="legend-text">Town</div>
-        </div>
-        <div class="legend-item">
-          <div class="legend-icon marker-landmark">
-            <!-- Landmark icon will be inserted by JavaScript -->
-          </div>
-          <div class="legend-text">Landmark</div>
-        </div>
-        <div class="legend-item">
-          <div class="legend-icon marker-poi">
-            <!-- POI icon will be inserted by JavaScript -->
-          </div>
-          <div class="legend-text">Point of Interest</div>
-        </div>
-      </div>
-
-      <div class="map-controls">
-        <div class="control-panel">
-          <div class="zoom-controls">
-            <button class="control-btn" id="zoom-in">+</button>
-            <button class="control-btn" id="zoom-out">−</button>
-          </div>
-          <button class="control-btn" id="reset-view" style="margin-top: 10px">
-            ⟲
-          </button>
         </div>
         <div
-          class="loading-indicator"
-          id="loading-indicator"
-          style="display: none"
-        >
-          Loading tiles
+            class="loading-indicator"
+            id="loading-indicator"
+            style="display: none"
+          >
+            Loading tiles
+          </div>
+        <div class="debug-info" id="debug-info" style="display: none">
+          Zoom: 1.0, Tiles: 0/0 loaded
         </div>
-      </div>
-
-      <div class="debug-info" id="debug-info" style="display: none">
-        Zoom: 1.0, Tiles: 0/0 loaded
       </div>
     </div>
 
@@ -1109,6 +936,17 @@
           }
           return false;
         })();
+
+        // map legend expand/collapse logic:
+        document.querySelector(".map-legend").addEventListener("click", function(){
+          this.classList.add("hidden")
+          document.querySelector("#expand-legend").classList.remove("hidden")
+        })
+
+        document.querySelector("#expand-legend").addEventListener("click", function(){
+          this.classList.add("hidden")
+          document.querySelector(".map-legend").classList.remove("hidden")
+        })
 
         // Update legend icons with the new marker SVGs
         document.querySelectorAll(".legend-icon").forEach((icon) => {
