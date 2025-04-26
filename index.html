@@ -6,7 +6,7 @@
       name="viewport"
       content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
     />
-    <title>Faerûn Map - Enhanced Edition</title>
+    <title>Sword Coast - Interactive Map</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -16,8 +16,8 @@
     <script src="https://kit.fontawesome.com/6bbc25d724.js" crossorigin="anonymous"></script>
     <style>
       :root{
-        --map-width: 50vw;   /* set whatever you like: 100%, 70vw, etc. */
-        --map-height: 60vh;  /* 60vh, clamp(400px,50vh,800px)… */
+        --map-width: min(960px, 100%);   /* set whatever you like: 100%, 70vw, etc. */
+        --map-height: min(560px, 100%);  /* 60vh, clamp(400px,50vh,800px)… */
       }
 
       /* Reset and base styles */
@@ -461,8 +461,8 @@
 
       .control-panel {
         position: absolute;
-        bottom: 0;
-        right: 0;
+        bottom: 5px;
+        right: 5px;
         display: flex;
         gap: 2%;
       }
@@ -602,8 +602,8 @@
 
       #expand-legend{
         position: absolute;
-        bottom: 0;
-        left: 0;
+        bottom: 5px;
+        left: 5px;
       }
 
       .hidden{
@@ -654,7 +654,7 @@
           </div>
         </div>
         <!-- Legend for map markers -->
-        <div class="map-legend">
+        <div class="map-legend hidden">
           <div class="legend-title">Map Symbols</div>
           <div class="legend-item">
             <div class="legend-icon marker-city">
@@ -681,7 +681,7 @@
             <div class="legend-text">Point of Interest</div>
           </div>
         </div>
-        <div id="expand-legend" class="hidden control-btn"><i class="fa-solid fa-caret-up"></i></div>
+        <div id="expand-legend" class="control-btn"><i class="fa-solid fa-caret-up"></i></div>
         <div class="map-controls">
           <div class="control-panel">
               <button class="control-btn" id="zoom-in">+</button>
