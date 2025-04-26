@@ -2,6 +2,8 @@
 
 A high-performance, responsive interactive map of Faerûn (Sword Coast) built with pure HTML, CSS, and JavaScript. No external libraries or dependencies.
 
+https://larsenwald.github.io/Sword-Coast-Interactive-Map/
+
 ![Faerûn Map Preview](https://github.com/user-attachments/assets/2e519454-37e3-47e1-a6ad-d8bcf1ea797d)
 
 ## Features
